@@ -160,31 +160,48 @@ class JstageScraper:
         html = await self.fetch_page(article_url)
         if not html:
             return None
-            
         soup = BeautifulSoup(html, 'html.parser')
         try:
+            # Title
             title_elem = soup.find('div', class_='global-article-title')
             title = title_elem.get_text(strip=True) if title_elem else ''
+
+            # Authors
             authors = []
-            for author in soup.find_all('span', class_='author-name'):
-                authors.append(author.get_text(strip=True))
+            authors_div = soup.find('div', class_='global-authors-name-tags')
+            if authors_div:
+                for span in authors_div.find_all('span'):
+                    author = span.get_text(strip=True)
+                    if author:
+                        authors.append(author)
+
+            # DOI
             doi = ''
             doi_elem = soup.find('a', href=True, string=lambda s: s and s.startswith('https://doi.org/'))
             if doi_elem:
                 doi = doi_elem.get_text(strip=True)
+
+            # Abstract
             abstract = ''
             abstract_elem = soup.find('div', class_='abstract')
             if abstract_elem:
                 abstract = abstract_elem.get_text(strip=True)
+
+            # Keywords
             keywords = []
             keywords_elem = soup.find('div', class_='keywords')
             if keywords_elem:
                 for kw in keywords_elem.find_all('span', class_='keyword'):
                     keywords.append(kw.get_text(strip=True))
+
+            # PDF Link
             pdf_url = ''
-            pdf_link = soup.find('a', href=True, string=lambda s: s and 'PDF' in s)
+            pdf_link = soup.find('a', class_='thirdlevel-pdf-btn', href=True)
             if pdf_link:
-                pdf_url = urljoin(self.base_url, pdf_link['href'])
+                pdf_url = pdf_link['href']
+                if not pdf_url.startswith('http'):
+                    pdf_url = urljoin(self.base_url, pdf_url)
+
             return {
                 'subject_area': subject_area,
                 'journal_name': journal_name,
